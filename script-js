@@ -1,0 +1,516 @@
+<script>
+class Order {
+    constructor() {
+        this._menu = [];
+        this._previousSales = [];
+        this._invoiceNumber = "";
+        this._order = [];
+        this._payment = {
+            invoiceNumber: 0,
+            amountPaid: 0,
+            type: "",
+            changeTip: 0
+        };
+    }
+      
+    
+    get menu() {
+        return this._menu;
+    }
+
+    set menu(menuArray) {
+        this._menu = [];
+        console.log("type of menu: " + typeof this._menu)
+        menuArray.forEach(menuItem => {
+            let currItem = {};
+            currItem.sku = menuItem[0];
+            currItem.description = menuItem[1];
+            currItem.price = menuItem[2];
+            currItem.taxRate = menuItem[3];
+            currItem.image = menuItem[4];
+            this._menu.push(currItem);
+            
+        });
+        console.log("type of menu: " + typeof this._menu)
+        console.log("menu index 0: " + this._menu[0].sku)
+    }
+
+    get invoiceNumber() {
+        return this._invoiceNumber;
+    }
+
+    get previousSales() {
+        return this._previousSales;
+    }
+
+    set previousSales(salesData) {
+        this._previousSales = salesData;
+    }
+
+    get order() {
+        return this._order;
+    }
+
+    get payment() {
+        return this._payment;
+    }
+
+    set payment(payment) {
+        this._payment = payment;
+    }
+
+    generateInvoiceNumber() {
+        if (this._previousSales.length < 1 || this._previousSales == undefined) {
+            this._invoiceNumber = 1;
+        } else {
+            let highest = 0;
+            this._previousSales.forEach(previousSalesLine => {
+                if (previousSalesLine[1] > highest) {
+                    highest = previousSalesLine[1];
+                }
+                this._invoiceNumber = highest + 1;
+            })
+
+        }
+    }
+
+    addOrderLine(quantity, sku) {
+        let currentLine = {};
+
+        for (let i = 0; i < this._menu.length; i++) {
+            if (sku === this._menu[i].sku) {
+                currentLine.sku = this._menu[i].sku;
+                currentLine.description = this._menu[i].description;
+                currentLine.quantity = quantity;
+                currentLine.price = this._menu[i].price;
+                currentLine.subtotal = currentLine.quantity * currentLine.price;
+                currentLine.tax = Utilities.roundToTwo(this._menu[i].taxRate * currentLine.subtotal);
+            }
+        }
+
+        this._order.push(currentLine);
+        Ui.receiptDetails(this);
+    }
+
+    deleteOrderLine(index) {
+        this._order.splice(index, 1);
+
+        Ui.receiptDetails(this);
+    }
+
+    clearOrder() {
+        this._order = [];
+        Ui.receiptDetails(this);
+    }
+
+    changePayment(input) {
+
+        const orderGrandTotal = this.getSummary(this).grandtotal
+        if (input.invoiceNumber != null) this.payment.invoiceNumber = input.invoiceNumber;
+        if (input.amountPaid != null) this.payment.amountPaid = parseFloat(input.amountPaid);
+        if (input.type != null) this.payment.type = input.type;
+        if (this.payment.amountPaid > orderGrandTotal) {
+            this.payment.changeTip = this.payment.amountPaid - orderGrandTotal;
+            Ui.closeButton(false);
+        } else {
+            this.payment.changeTip = 0;
+            Ui.closeButton(false);
+        }
+
+        Ui.paymentSummary(this);
+    }
+
+    clearPayment() {
+        this._payment = {
+            invoiceNumber: 0,
+            amountPaid: 0,
+            type: "",
+            changeTip: 0
+        };
+        Ui.paymentSummary(this);
+    }
+
+    getSummary() {
+        const summary = {
+            subtotal: 0,
+            tax: 0,
+            grandtotal: 0
+        };
+
+        this.order.forEach(orderLine => {
+            summary.subtotal += orderLine.subtotal;
+            summary.tax += orderLine.tax;
+        })
+        summary.grandtotal = summary.subtotal + summary.tax;
+
+        return summary;
+    }
+
+    paypad(input) {
+    if (!isNaN(parseInt(input))) {
+        Utilities.numberPaypad(parseInt(input), this);
+        this.showCloseSaleButton(); // Ensure closeSale button is shown
+    } else if (input === 'back') {
+        Utilities.backPaypad(this);
+    } else if (input === 'clear') {
+        Utilities.clearPaypad(this);
+    } else {
+        this.closeSale();
+        }
+    }
+
+    exportOrder(date) {
+        let exportData = [];
+
+        this.order.forEach(orderLine => {
+            let currentLine = [];
+            currentLine[0] = date;
+            currentLine[1] = this.invoiceNumber;
+            currentLine[2] = orderLine.description;
+            currentLine[3] = orderLine.price;
+            currentLine[4] = orderLine.quantity;
+            currentLine[5] = orderLine.sku;
+            
+            exportData.push(currentLine);
+            this.previousSales.push(currentLine);
+        });
+
+        return exportData;
+    }
+
+    exportPayment(date) {
+        const currentPayment = [[]];
+        const tipChange = Utilities.roundToTwo(this.payment.amountPaid - this.getSummary().grandtotal)
+
+        currentPayment[0][0] = date;
+        currentPayment[0][1] = this.invoiceNumber;
+        currentPayment[0][3] = this.payment.type;
+
+        console.log(this.getSummary().grandtotal)
+        if (this.payment.type === "cash") {
+            currentPayment[0][2] = this.getSummary().grandtotal;
+        } else {
+            currentPayment[0][2] = this.getSummary().grandtotal;
+            currentPayment[0][4] = tipChange;
+        }
+        
+        return currentPayment;
+    }
+
+    closeSale() {
+        const date = new Date();
+        const orderData = this.exportOrder(date);
+        const paymentData = this.exportPayment(date);
+        const exportData = {
+          order: orderData,
+          payment: paymentData
+        }
+        
+        Ui.hidePaypad(this);
+        this.clearPayment();
+        this.clearOrder();
+        Ui.invoiceNumber(this);
+
+        google.script.run.setData(JSON.stringify(exportData));
+
+        
+    }
+
+}
+
+
+class Ui {
+    static menu(orderInstance) {
+        let frag = document.createDocumentFragment();
+        console.log("index 0 description: " + orderInstance.menu[0].description)
+        orderInstance.menu.forEach(item => {
+
+            let menuElement = `<img class="menu-img" src="${item.image}" alt="${item.description}" border="0" style="width:150px">
+            <figcaption>${item.description}</figcaption> 
+            <figcaption>${Utilities.convertFloatToString(item.price)}</figcaption>`;
+
+            let node = document.createElement("figure");
+            node.className = 'menu-option';
+            
+            node.setAttribute("data-sku", `${item.sku}`);
+            node.innerHTML = menuElement;
+            frag.appendChild(node);
+        });
+
+        document.getElementById("menu").appendChild(frag);
+
+        document.querySelectorAll('.menu-option').forEach(button => {
+            // Create a dropdown for quantity selection
+    let dropdown = document.createElement("select");
+    dropdown.classList.add("quantity-selector");
+    
+    
+
+    // Add quantity options (1 to 10)
+    for (let i = 1; i <= 10; i++) {
+        let option = document.createElement("option");
+        option.value = i;
+        option.textContent = i;
+        dropdown.appendChild(option);
+    }
+
+    // Insert dropdown next to each menu item
+    button.appendChild(dropdown);
+
+    // Add event listener for order selection
+    button.addEventListener('click', () => {
+        let quantity = parseInt(dropdown.value); // Get selected quantity
+        let sku = parseInt(button.getAttribute("data-sku"));
+        orderInstance.addOrderLine(quantity, sku);
+            });
+        });
+    }
+
+    static receiptDetails(orderInstance) {
+    let frag = document.createDocumentFragment();
+
+    // Group order lines by SKU to update quantity instead of adding duplicates
+    let orderMap = new Map();
+    
+    orderInstance.order.forEach(orderLine => {
+        if (orderMap.has(orderLine.sku)) {
+            // Update quantity and subtotal if item already exists
+            let existingOrder = orderMap.get(orderLine.sku);
+            existingOrder.quantity += orderLine.quantity;
+            existingOrder.subtotal += orderLine.subtotal;
+        } else {
+            // Otherwise, add new item to map
+            orderMap.set(orderLine.sku, { ...orderLine });
+        }
+    });
+
+    // Convert map back to array for display
+    let updatedOrder = Array.from(orderMap.values());
+
+    updatedOrder.forEach((orderLine, index) => {
+        let receiptLine = `<td class="description">${orderLine.description}</td>
+            <td class="quantity">${orderLine.quantity}</td>
+            <td class="price">${Utilities.convertFloatToString(orderLine.price)}</td>
+            <td class="subtotal">${Utilities.convertFloatToString(orderLine.subtotal)}</td>
+            <td class="delete" data-delete="${orderLine.sku}"><i class="fas fa-backspace"></i></td>`;
+
+        let node = document.createElement("tr");
+        node.setAttribute("data-index", `${index.toString()}`);
+        node.innerHTML = receiptLine;
+        frag.appendChild(node);
+    });
+
+    let receiptDetails = document.getElementById("receipt-details");
+    while (receiptDetails.firstChild) {
+        receiptDetails.removeChild(receiptDetails.firstChild);
+    }
+
+    receiptDetails.appendChild(frag);
+    this.summary(orderInstance);
+
+    // Attach event listeners for deletion
+    document.querySelectorAll('.delete').forEach(button => {
+        button.addEventListener('click', () => {
+            let skuToDelete = parseInt(button.getAttribute("data-delete"));
+            // Find the order item by SKU
+            let item = orderInstance.order.find(orderLine => orderLine.sku === skuToDelete);
+            if (item) {
+                // Reduce quantity by 1
+                item.quantity--;
+
+                // Update subtotal
+                item.subtotal = item.quantity * item.price;
+
+                // If quantity is 1, remove the item from the order list
+                if (item.quantity <= 1) {
+                    orderInstance.order = orderInstance.order.filter(orderLine => orderLine.sku !== skuToDelete);
+                }
+            }
+
+            // Refresh the receipt display
+            Ui.receiptDetails(orderInstance);
+        });
+    });
+}
+
+
+
+
+
+    static summary(orderInstance) {
+        const summary = orderInstance.getSummary(orderInstance);
+        const subtotal = document.getElementById("subtotal-summary");
+        const tax = document.getElementById("tax-summary");
+        const grandtotal = document.getElementById("grandtotal-summary");
+
+        subtotal.textContent = Utilities.convertFloatToString(summary.subtotal);
+        tax.textContent = Utilities.convertFloatToString(summary.tax);
+        grandtotal.textContent = Utilities.convertFloatToString(summary.grandtotal);
+
+    }
+
+    static showPaypad(orderInstance) {
+        orderInstance.clearPayment();
+        const paypad = document.getElementById('payment-overlay');
+        paypad.style.display = "grid";
+        
+    }
+
+    static hidePaypad(orderInstance) {
+        orderInstance.clearPayment();
+        const paypad = document.getElementById('payment-overlay');
+        paypad.style.display = "none";
+    }
+
+    static paymentSummary(orderInstance) {
+        document.getElementById('amount-paid').textContent = Utilities.convertFloatToString(orderInstance.payment.amountPaid);
+
+        const changeTipTitle = document.getElementById("tip-change-title");
+
+        const paymentType = document.getElementById("payment-type")
+
+        if (orderInstance.payment.type === "credit") {
+            changeTipTitle.textContent = "Tip:";
+            paymentType.textContent = "pos";
+        } else if (orderInstance.payment.type === "cash") {
+            changeTipTitle.textContent = "Change:";
+            paymentType.textContent = "Cash";
+        } else {
+            changeTipTitle.textContent = "Change:";
+            paymentType.textContent = "";
+        }
+        document.getElementById("tip-change-value").textContent = Utilities.convertFloatToString(orderInstance.payment.changeTip);
+    }
+
+    static invoiceNumber(orderInstance) {
+        orderInstance.generateInvoiceNumber();
+        const invoiceNumber = orderInstance.invoiceNumber;
+        document.getElementById('invoice-number').textContent = `Invoice# ${invoiceNumber}`;
+    }
+
+    static closeButton(bool) {
+        const closeButton = document.getElementById('close-sale');
+        if (bool) {
+            closeButton.style.display = "none"
+        } else {
+            closeButton.style.display = "grid";
+        }
+    }
+}
+
+
+class Utilities {
+    static convertStringToFloat(str) {
+        let currString = str.substring(1);
+        let currFloat = parseFloat(currString.replace(/,/g, ''));
+        return currFloat;
+    }
+
+    static convertFloatToString(float) {
+        float = float;
+        let priceParams = {
+            style: "currency",
+            currency: "NGN" // Changed currency from USD to NGN for Naira
+
+        };
+        return float.toLocaleString('en-NG', priceParams); // Use 'en-NG' for Nigerian locale
+
+    }
+
+    static roundToTwo(num) {
+        return +(Math.round(num + "e+2") + "e-2");
+    }
+
+    static numberPaypad(input, orderInstance) {
+        const currentInput = this.roundToTwo(input * 0.01);
+        const currentAmountPaid = this.roundToTwo(orderInstance.payment.amountPaid);
+        const newAmountPaid = this.roundToTwo((currentAmountPaid * 10) + currentInput);
+
+        if (currentAmountPaid === 0) {
+            orderInstance.changePayment({ amountPaid: currentInput });
+        } else {
+            orderInstance.changePayment({ amountPaid: newAmountPaid });
+        }
+
+    }
+
+    static backPaypad(orderInstance) {
+        const currentPayment = orderInstance.payment.amountPaid;
+
+        if (currentPayment > 0) {
+            const toSubtract = ((currentPayment * 100) % 10) * 0.01;
+            const newAmount = (currentPayment - toSubtract) * 0.1
+            orderInstance.changePayment({ amountPaid: newAmount });
+        }
+
+
+    }
+
+    static clearPaypad(orderInstance) {
+        orderInstance.changePayment({ amountPaid: 0 });
+    }
+}
+
+
+
+
+// ORDER INSTANTIATION
+const order = new Order();
+
+function sheetData() {
+  google.script.run.withSuccessHandler(function(dataArray){
+    console.log('With success data: ' + dataArray)
+    items = Object.values(dataArray.items);
+   
+    
+    sales = dataArray.sales;
+    
+    order.menu = items;
+    order.previousSales = sales;
+    
+    Ui.menu( order );
+
+    Ui.invoiceNumber(order);
+   
+  }).getData();
+}
+
+sheetData();
+
+
+
+
+
+//STATIC EVENT LISTENERS
+document.querySelectorAll('.paypad-btn').forEach(button => {
+    button.addEventListener('click', () => {
+        order.paypad(button.getAttribute("data-id"));
+    });
+});
+
+document.querySelectorAll('.paypad-show').forEach(button => {
+    button.addEventListener('click', () => {
+        Ui.showPaypad(order);
+        order.changePayment(JSON.parse(button.getAttribute("data-payment-type")));
+    });
+});
+
+
+document.getElementById('paypad-close').addEventListener('click', () => {
+    order.clearPayment();
+    Ui.hidePaypad(order);
+});
+
+document.getElementById('clear-order').addEventListener('click', () => {
+    order.clearOrder();
+});
+
+
+
+
+
+
+
+
+
+</script>
