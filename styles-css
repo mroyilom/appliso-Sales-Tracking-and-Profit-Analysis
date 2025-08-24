@@ -1,0 +1,321 @@
+<style>
+ * {
+    box-sizing: border-box;
+    padding: 0;
+    margin: 0;
+    font-family: 'Roboto', sans-serif;
+}
+
+html {
+    height: 100%;
+}
+
+header {
+    background-color: rgba(255, 255, 255, 0.1);
+    color: #FFFFFF;
+    font-size: smaller;
+}
+
+header h1 {
+    font-family: 'Audiowide', cursive;
+    margin-left: 15px;
+}
+
+body {
+    background-color: #121212;
+}
+
+main {
+    margin-top: 10px;
+}
+
+.offscreen {
+    position: absolute;
+    left: -10000px;
+}
+
+.grid {
+    display: grid;
+}
+
+.flex-row {
+    display: flex;
+    flex-direction: row;
+}
+
+.flex-column {
+    display: flex;
+    flex-direction: column;
+}
+
+.order,
+.menu-payment {
+    border: solid;
+    border-width: .5px;
+    border-radius: 10px;
+    margin: 0px 10px 5px 10px;
+    height: 100%;
+    max-height: 100%;
+}
+
+
+/*---------------------ORDER-----------------*/
+
+.order {
+    background-color: white;
+    flex: 0 0 auto; /* Allows it to grow dynamically */
+    min-height: 440px; /* Keeps a minimum height */
+}
+
+.receipt {
+    border: solid;
+    border-width: .5px;
+    margin: 10px 15px 5px 15px;
+    box-shadow: 3px 3px 2px rgb(3, 3, 3);
+    user-select: none;
+}
+
+.receipt,
+.company-info,
+.receipt-footer {
+    align-items: center;
+}
+
+.company-info {
+    margin-top: 5px;
+}
+
+#company-name {
+    font-size: 1.5rem;
+}
+
+#company-phone {
+    font-size: 1rem;
+}
+
+table {
+    width: 100%;
+    table-layout: auto;
+}
+
+th.description {
+    width: 180px;
+    text-align: left;
+}
+
+.receipt-details {
+    margin-top: 10px;
+    max-height: 100%;
+    overflow-y: auto; /* Allows scrolling if necessary */
+}
+
+.dotted-border {
+    border-bottom: 2px
+}
+
+.quantity,
+.price,
+.subtotal,
+.delete {
+    text-align: right;
+}
+
+.fa-backspace:hover {
+    transform: scale(1.2);
+}
+
+th.price {
+    width: 70px;
+}
+
+th.subtotal {
+    width: 75px;
+}
+
+table.summary-table {
+    text-align: right;
+}
+
+tbody.summary-table td:nth-child(1) {
+    width: 277px;
+}
+
+tbody.summary-table td:nth-child(2) {
+    width: 75px;
+}
+
+tbody.summary-table td:nth-child(3) {
+    width: 25px;
+}
+
+#barcode {
+    font-family: 'Libre Barcode 128', cursive;
+    font-size: 70px;
+    text-align: center;
+    margin-top: 10px;
+}
+
+.toolbar {
+    flex: 0 0 60px;
+    justify-content: space-around;
+    justify-items: center;
+    align-items: center;
+    border: solid;
+    border-width: .5px;
+    border-radius: 10px;
+    margin: 0px 15px 5px 15px;
+}
+
+.toolbar-icon {
+    font-size: 2rem;
+}
+
+.toolbar-icon:hover {
+    transform: scale(1.2);
+}
+
+.receipt-footer {
+    padding-top: 20px;
+}
+
+
+/*--------------------MENU PAYMENT-----------------*/
+
+.menu-payment {
+    background: rgba(255, 255, 255, .05);
+    flex-grow: 1;
+    height: 800px;
+    z-index: 0;
+}
+
+.menu {
+    background-color: rgba(255, 255, 255, 0.01);
+    grid-column: 1;
+    grid-row: 1;
+    flex-flow: row wrap;
+    align-items: flex-start;
+    align-content: flex-start;
+    position: absolute;
+    z-index: 0;
+    height: 800.5px;
+    overflow: auto;
+}
+
+#payment-overlay {
+    display: none;
+    grid-column: 1;
+    grid-row: 1;
+    align-self: start;
+    justify-self: start;
+    grid-template-columns: 330px auto;
+    transition: display 2s;
+    width: 100%;
+    height: 100%;
+    z-index: 9;
+    background: rgba(3, 3, 3, 0.5);
+}
+
+.paypad {
+    margin: 10px 0 0 10px;
+    align-content: center;
+    grid-column: 1;
+    grid-template-columns: repeat(3, 100px);
+    grid-template-rows: repeat(5, 100px);
+}
+
+.span3-col {
+    grid-column: span 3;
+}
+
+#close-sale {
+    display: none;
+}
+
+.paypad-btn.number {
+    font-size: 2rem;
+}
+
+.close-icon:hover {
+    transform: scale(1.05);
+}
+
+.close-paypad {
+    grid-column: 2/3;
+}
+
+.close-icon {
+    font-size: 3rem;
+    margin: 150px 0 0 20px;
+    color: white;
+}
+
+..menu-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 150px;
+    padding: 10px;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 5px;
+}
+
+.menu-item-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: 5px;
+    gap: 5px;
+}
+
+.quantity-selector {
+    padding: 5px;
+    font-size: 1rem;
+    border-radius: 5px;
+    background-color: #ffffff;
+    color: #121212;
+    width: 60px;
+    text-align: center;
+    cursor: pointer;
+}
+
+.menu-img {
+    border-radius: 50%;
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: auto;
+}
+
+figcaption {
+    color: #ffffff;
+    text-align: center;
+    margin-bottom: 0px;
+    user-select: none;
+}
+
+.menu-item:hover>.menu-img {
+    transform: scale(1.03);
+}
+
+
+@media only screen and (max-height: 770px) {
+
+  .menu {
+    
+    height: 690px;
+    
+}
+  .menu-payment {
+  
+    height: 690px;
+   
+}
+  .receipt-details {
+    margin-top: 10px;
+    max-height: 100%;
+    overflow-y: auto; /* Allows scrolling if necessary */
+}
+}
+
+}
+  </style>
